@@ -55,6 +55,7 @@ func NewClient(netConn net.Conn, host, path string, requestHeader http.Header, r
 		return nil, nil, err
 	}
 
+	u := &url.URL{Scheme: "ws", Host: host, Path: path}
 	resp, err := http.ReadResponse(c.br, &http.Request{Method: "GET", URL: u})
 	if err != nil {
 		return nil, nil, err
@@ -93,7 +94,7 @@ type Dialer struct {
 var errMalformedURL = errors.New("malformed ws or wss URL")
 
 // s 应该是 ws+unix:///var/run/docker.sock/path
-func parseURL(s string) (string, string) {
+func parseURL(s, endpoint string) (string, string) {
 	var host, path string
 	switch {
 	case strings.HasPrefix(s, "ws://"):
@@ -101,9 +102,9 @@ func parseURL(s string) (string, string) {
 	case strings.HasPrefix(s, "ws+unix://"):
 		s = s[len("ws+unix://"):]
 	}
-	if strings.HasPrefix(s, config.Docker.Endpoint) {
-		path = s[len(config.Docker.Endpoint):]
-		host = config.Docker.Endpoint
+	if strings.HasPrefix(s, endpoint) {
+		path = s[len(endpoint):]
+		host = endpoint
 	}
 	return host, path
 }
@@ -119,8 +120,8 @@ var DefaultDialer *Dialer
 // If the WebSocket handshake fails, ErrBadHandshake is returned along with a
 // non-nil *http.Response so that callers can handle redirects, authentication,
 // etc.
-func (d *Dialer) Dial(network, urlStr string, requestHeader http.Header) (*Conn, *http.Response, error) {
-	host, path := parseURL(urlStr)
+func (d *Dialer) Dial(urlStr, endpoint string, requestHeader http.Header) (*Conn, *http.Response, error) {
+	host, path := parseURL(urlStr, endpoint)
 
 	if d == nil {
 		d = &Dialer{}
